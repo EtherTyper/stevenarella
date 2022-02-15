@@ -31,99 +31,14 @@ const VALIDATE_URL: &str = "https://authserver.mojang.com/validate";
 #[cfg(not(target_arch = "wasm32"))]
 impl Profile {
     pub fn login(username: &str, password: &str, token: &str) -> Result<Profile, super::Error> {
-        let req_msg = json!({
-        "username": username,
-        "password": password,
-        "clientToken": token,
-        "agent": {
-            "name": "Minecraft",
-            "version": 1
-        }});
-        let req = serde_json::to_string(&req_msg)?;
-
-        let client = reqwest::blocking::Client::new();
-        let res = client
-            .post(LOGIN_URL)
-            .header(reqwest::header::CONTENT_TYPE, "application/json")
-            .body(req)
-            .send()?;
-
-        let ret: serde_json::Value = serde_json::from_reader(res)?;
-        if let Some(error) = ret.get("error").and_then(|v| v.as_str()) {
-            return Err(super::Error::Err(format!(
-                "{}: {}",
-                error,
-                ret.get("errorMessage").and_then(|v| v.as_str()).unwrap()
-            )));
-        }
         Ok(Profile {
-            username: ret
-                .pointer("/selectedProfile/name")
-                .and_then(|v| v.as_str())
-                .unwrap()
-                .to_owned(),
-            id: ret
-                .pointer("/selectedProfile/id")
-                .and_then(|v| v.as_str())
-                .unwrap()
-                .to_owned(),
-            access_token: ret
-                .get("accessToken")
-                .and_then(|v| v.as_str())
-                .unwrap()
-                .to_owned(),
+            username: username.to_string(),
+            id: "".to_string(),
+            access_token: "".to_string()
         })
     }
 
     pub fn refresh(self, token: &str) -> Result<Profile, super::Error> {
-        let req_msg = json!({
-        "accessToken": self.access_token,
-        "clientToken": token
-        });
-        let req = serde_json::to_string(&req_msg)?;
-
-        let client = reqwest::blocking::Client::new();
-        let res = client
-            .post(VALIDATE_URL)
-            .header(reqwest::header::CONTENT_TYPE, "application/json")
-            .body(req)
-            .send()?;
-
-        if res.status() != reqwest::StatusCode::NO_CONTENT {
-            let req = serde_json::to_string(&req_msg)?; // TODO: fix parsing twice to avoid move
-                                                        // Refresh needed
-            let res = client
-                .post(REFRESH_URL)
-                .header(reqwest::header::CONTENT_TYPE, "application/json")
-                .body(req)
-                .send()?;
-
-            let ret: serde_json::Value = serde_json::from_reader(res)?;
-            if let Some(error) = ret.get("error").and_then(|v| v.as_str()) {
-                return Err(super::Error::Err(format!(
-                    "{}: {}",
-                    error,
-                    ret.get("errorMessage").and_then(|v| v.as_str()).unwrap()
-                )));
-            }
-            return Ok(Profile {
-                username: ret
-                    .pointer("/selectedProfile/name")
-                    .and_then(|v| v.as_str())
-                    .unwrap()
-                    .to_owned(),
-                id: ret
-                    .pointer("/selectedProfile/id")
-                    .and_then(|v| v.as_str())
-                    .unwrap()
-                    .to_owned(),
-                access_token: ret
-                    .get("accessToken")
-                    .and_then(|v| v.as_str())
-                    .unwrap()
-                    .to_owned(),
-            });
-        }
         Ok(self)
     }
 
